@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Xml.Linq;
 using UnrealSharpManagedGlue.SourceGeneration;
 using UnrealSharpManagedGlue.Utilities;
@@ -20,43 +21,60 @@ public static class PreprocessorExporter
         HashSet<string> definesSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         
         string csproj = Path.Combine(engineDirectory, "Intermediate", "Build", "BuildRulesProjects", "UE5Rules", "UE5Rules.csproj");
-        if (!File.Exists(csproj))
+        if (File.Exists(csproj))
         {
-            return definesSet;
-        }
-
-        XDocument document;
-        try 
-        { 
-            document = XDocument.Load(csproj); 
-        }
-        catch 
-        {
-            return definesSet; 
-        }
-
-        IEnumerable<string> values = document.Descendants("DefineConstants").Select(x => x.Value);
-        foreach (string value in values)
-        {
-            foreach (string raw in value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+            try
             {
-                string s = raw.Trim();
-                
-                if (s.Length == 0)
+                XDocument document = XDocument.Load(csproj);
+                IEnumerable<string> values = document.Descendants("DefineConstants").Select(x => x.Value);
+                foreach (string value in values)
                 {
-                    continue;
-                }
+                    foreach (string raw in value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        string s = raw.Trim();
 
-                if (s.StartsWith("$(", StringComparison.Ordinal))
-                {
-                    continue;
-                }
+                        if (s.Length == 0 || s.StartsWith("$(", StringComparison.Ordinal))
+                        {
+                            continue;
+                        }
 
-                definesSet.Add(s);
+                        definesSet.Add(s);
+                    }
+                }
+            }
+            catch
+            {
             }
         }
 
+        AddEngineVersionDefines(engineDirectory, definesSet);
         return definesSet;
+    }
+
+    private static void AddEngineVersionDefines(string engineDirectory, HashSet<string> defines)
+    {
+        string buildVersionPath = Path.Combine(engineDirectory, "Build", "Build.version");
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(buildVersionPath));
+            JsonElement root = document.RootElement;
+
+            if (!root.TryGetProperty("MajorVersion", out JsonElement majorVersionElement)
+                || !root.TryGetProperty("MinorVersion", out JsonElement minorVersionElement)
+                || majorVersionElement.GetInt32() != 5)
+            {
+                return;
+            }
+
+            int minorVersion = minorVersionElement.GetInt32();
+            for (int version = 0; version <= minorVersion; version++)
+            {
+                defines.Add($"UE_5_{version}_OR_LATER");
+            }
+        }
+        catch
+        {
+        }
     }
 
     private static void GenerateMSBuildProps(HashSet<string> defines)
