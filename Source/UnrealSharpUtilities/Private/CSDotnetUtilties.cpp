@@ -60,7 +60,8 @@ FString UnrealSharp::DotNetUtilities::GetDotNetDirectory()
 	PathVariable.ParseIntoArray(Paths, FPlatformMisc::GetPathVarDelimiter());
 
 #if defined(_WIN32)
-	const FString PathMarker = TEXT("Program Files\\dotnet\\");
+	// No trailing separator: PATH entries are commonly written as "C:\Program Files\dotnet".
+	const FString PathMarker = TEXT("Program Files\\dotnet");
 #else
 	const FString PathMarker = TEXT("dotnet");
 #endif
@@ -68,7 +69,7 @@ FString UnrealSharp::DotNetUtilities::GetDotNetDirectory()
 	FString DotNetPathFromEnv;
 	for (const FString& Path : Paths)
 	{
-		if (!Path.Contains(PathMarker))
+		if (Path.IsEmpty() || !Path.Contains(PathMarker))
 		{
 			continue;
 		}
@@ -79,7 +80,13 @@ FString UnrealSharp::DotNetUtilities::GetDotNetDirectory()
 			break;
 		}
 
+		// GetDotNetExecutablePath() concatenates "dotnet.exe" onto this, so the returned directory
+		// must end with a separator whether or not the PATH entry did.
 		DotNetPathFromEnv = Path;
+		if (!DotNetPathFromEnv.EndsWith(TEXT("/")) && !DotNetPathFromEnv.EndsWith(TEXT("\\")))
+		{
+			DotNetPathFromEnv += TEXT("/");
+		}
 		break;
 	}
 
