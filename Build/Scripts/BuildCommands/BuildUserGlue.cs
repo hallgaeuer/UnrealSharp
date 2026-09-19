@@ -94,7 +94,16 @@ public class BuildUserGlue : BuildCommand
             return false;
         }
 
-        return glueProjectPaths.ToList().SequenceEqual(glueProjectPaths);
+        // Compare the projects recorded in the stamp against the current set. Comparing the list to
+        // itself would always report "same", so newly added glue projects would never reach the
+        // generated solution.
+        List<string> StampedProjectPaths = new List<string>(GlueProjectsArray.Count);
+        foreach (JsonNode? ProjectNode in GlueProjectsArray)
+        {
+            StampedProjectPaths.Add(ProjectNode?.GetValue<string>() ?? string.Empty);
+        }
+
+        return StampedProjectPaths.SequenceEqual(glueProjectPaths);
     }
 
     private static void CreateSolutionStamp(string solutionPath, List<string> glueProjectPaths)
