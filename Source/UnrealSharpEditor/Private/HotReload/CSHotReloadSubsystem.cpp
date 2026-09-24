@@ -128,7 +128,11 @@ void UCSHotReloadSubsystem::PerformHotReload()
 	if (!FCSHotReloadUtilities::RecompileDirtyProjects(AssembliesSortedByDependencies, ExceptionMessage))
 	{
 		CurrentHotReloadStatus = FailedToCompile;
-		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ExceptionMessage), FText::FromString(TEXT("C# Compilation Failed")));
+		// Log only, never a modal: FMessageDialog::Open blocks the game thread in a nested
+		// loop, which also stops the file watcher from seeing the next save, so a compile
+		// error would become an unrecoverable dead end until dismissed. Logging keeps the
+		// editor responsive and lets the next saved fix re-trigger the reload.
+		UE_LOG(LogUnrealSharpEditor, Error, TEXT("C# Compilation Failed:\n%s"), *ExceptionMessage);
 		return;
 	}
 	
@@ -364,7 +368,8 @@ void UCSHotReloadSubsystem::HandleScriptFileChanges(const TArray<FFileChangeData
 	FString ExceptionMessage;
 	if (!FCSHotReloadUtilities::ApplyDirtiedFiles(ProjectName.ToString(), DirtiedFiles, ExceptionMessage))
 	{
-		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ExceptionMessage), FText::FromString(TEXT("C# Hot Reload Error")));
+		// Log only: see PerformHotReload(). A modal here has the same game-thread stall problem.
+		UE_LOG(LogUnrealSharpEditor, Error, TEXT("C# Hot Reload Error:\n%s"), *ExceptionMessage);
 		return;
 	}
 	
