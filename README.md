@@ -149,6 +149,23 @@ public partial class AResourceBase : AActor, IInteractable
 }
 ```
 
+## Configuration
+
+UnrealSharp reads `Config/UnrealSharp.Settings.json` from the plugin, then overlays a `Config/UnrealSharp.Settings.json` from the consuming project (project values win). Supported keys:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `ScriptDirectoryName` | string | Folder (relative to a module root) that holds authored C# and generated glue. Defaults to `Script`. |
+| `SkipGlueModules` | string[] | Module short names to exclude from C# glue generation entirely. Excluded modules get no `Intermediate/UnrealSharp` glue folder or `.csproj` and are omitted from `UnrealSharpGlue.sln`. Equivalent to adding `PublicDefinitions.Add("SkipGlueGeneration=1")` to the module's `Build.cs`, but owned by the project so third-party plugin sources stay untouched. |
+
+Example project config:
+
+```json
+{
+  "SkipGlueModules": ["VibeUE"]
+}
+```
+
 ## Links
 
 - [Documentation](https://www.unrealsharp.com/) and [FAQ](https://www.unrealsharp.com/faq)
