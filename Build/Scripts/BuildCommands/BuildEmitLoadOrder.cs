@@ -41,6 +41,7 @@ public class BuildEmitLoadOrder : BuildCommand
         BuildCommands.BuildSolution.RunBuild(SolutionPath, TargetConfiguration, publish: true, BuildArguments);
         
         EmitLoadOrder(Projects, LoadOrderName, OutputPath, Options);
+        VerifyAssembliesExist(Projects, OutputPath);
         AddLaunchSettings(this);
     }
     
@@ -69,6 +70,38 @@ public class BuildEmitLoadOrder : BuildCommand
         }
 
         return Arguments;
+    }
+
+    /// <summary>
+    /// Fails the build if an expected assembly did not land in <paramref name="outputPath"/>.
+    /// The publish result is otherwise unchecked, so a skipped or failed project silently yields
+    /// an incomplete load order that only surfaces later as an editor startup crash.
+    /// </summary>
+    private static void VerifyAssembliesExist(IReadOnlyList<string> projects, string outputPath)
+    {
+        if (projects.Count == 0)
+        {
+            return;
+        }
+
+        List<string> Missing = new List<string>();
+        foreach (string Project in projects)
+        {
+            string AssemblyPath = Path.Combine(outputPath, Path.GetFileNameWithoutExtension(Project) + ".dll");
+            if (!File.Exists(AssemblyPath))
+            {
+                Missing.Add(Path.GetFileNameWithoutExtension(Project));
+            }
+        }
+
+        if (Missing.Count == 0)
+        {
+            return;
+        }
+
+        string Message = $"UnrealSharp glue build reported success, but {Missing.Count} assembly(ies) are missing from {outputPath}: {string.Join(", ", Missing)}. The load order would be incomplete and the editor would crash on startup.";
+        LoggerUtilities.LogUnrealSharpError(Message);
+        throw new AutomationException(Message);
     }
 
     private static void AddLaunchSettings(BuildCommand buildCommand)

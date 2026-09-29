@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -82,7 +83,15 @@ public static class ModuleFactory
 			new("OutputDirectory", PathUtilities.BuildOutputPath(GeneratorStatics.Factory.Session.ProjectDirectory!)),
 		};
 
-		UnrealSharpAutomationUtilities.InvokeUnrealSharpAutomation("BuildUserGlue", commandArgs);
+		// Fail loudly if the glue build fails. The managed assemblies under Binaries/Managed are the
+		// editor's runtime: a partial or failed build would otherwise be silent (this UHT export still
+		// reports success) and only surface later as an editor startup crash.
+		if (!UnrealSharpAutomationUtilities.InvokeUnrealSharpAutomation("BuildUserGlue", commandArgs))
+		{
+			throw new InvalidOperationException(
+				"UnrealSharp glue build failed (BuildUserGlue). See the UnrealSharp build output above; the managed assemblies in Binaries/Managed may be incomplete.");
+		}
+
 		return true;
 	}
 
