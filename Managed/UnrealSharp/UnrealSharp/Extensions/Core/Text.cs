@@ -201,16 +201,15 @@ public static class TextMarshaller
         {
             FTextData* to = (FTextData*)(nativeBuffer + arrayIndex * sizeof(FTextData));
             to->ObjectPointer.Release();
-            
-            if (obj != null)
-            {
-                *to = obj.Data;
-                to->ObjectPointer.AddRef();
-            }
-            else
-            {
-                *to = default;
-            }
+
+            // A managed FText is a reference type, so it can be null (e.g. an unassigned
+            // field of a struct created via Activator.CreateInstance). Never write a
+            // zeroed FTextData: that leaves the native FText with null TextData, which
+            // trips ensure(TextData) in FText::GetTextData on the next serialize/compare.
+            FText text = obj ?? FText.None;
+
+            *to = text.Data;
+            to->ObjectPointer.AddRef();
         }
     }
 
